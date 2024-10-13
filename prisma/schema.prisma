@@ -1,0 +1,78 @@
+generator client {
+    provider        = "prisma-client-js"
+    binaryTargets   = ["linux-arm64-openssl-1.1.x", "native"]
+    previewFeatures = ["metrics"]
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+enum NotificationTypes {
+    EMAIL
+    SMS
+    PUSH
+    IN_APP
+}
+
+enum NotificationStatus {
+    SCHEDULED
+    SENT
+    FAILED
+}
+
+model User {
+    id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    name       String   @unique
+    email      String   @unique
+    phone      String   @unique
+    created_at DateTime @default(now())
+    updated_at DateTime @default(now()) @updatedAt
+
+    Notifications      Notifications[]
+    NotificationsQueue NotificationsQueue[]
+
+    @@map("users")
+}
+
+model Notifications {
+    id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    user                User                  @relation(fields: [user_id], references: [id])
+    user_id             String                @db.Uuid
+    type                NotificationTypes
+    content             Json                  @db.Json
+    status              NotificationStatus
+    scheduled_at        DateTime
+    sent_at             DateTime?
+    created_at          DateTime              @default(now())
+    updated_at          DateTime              @default(now()) @updatedAt
+    FailedNotifications FailedNotifications[]
+
+    @@map("notifications")
+}
+
+model FailedNotifications {
+    id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    notifications   Notifications @relation(fields: [notification_id], references: [id])
+    notification_id String        @db.Uuid
+    error           String
+    retry_count     Int           @default(0)
+    last_retry_at   DateTime
+    created_at      DateTime      @default(now())
+    updated_at      DateTime      @default(now()) @updatedAt
+
+    @@map("failed_notifications")
+}
+
+model NotificationsQueue {
+    id         String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    user       User               @relation(fields: [user_id], references: [id])
+    user_id    String             @db.Uuid
+    type       NotificationTypes
+    status     NotificationStatus
+    created_at DateTime           @default(now())
+    updated_at DateTime           @default(now()) @updatedAt
+
+    @@map("notifications_queue")
+}
